@@ -14,7 +14,10 @@ import re
 import sys
 import threading
 import traceback
-from torch._six import string_classes, int_classes
+from torch._six import string_classes
+
+int_classes = (bool, int)
+# string_classes = 
 
 
 if sys.version_info[0] == 2:
