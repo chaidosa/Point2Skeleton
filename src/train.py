@@ -95,9 +95,9 @@ if __name__ == "__main__":
 
     #intialize networks
     model_skel = SkelPointNet(num_skel_points=skelpoint_num, input_channels=0, use_xyz=True)
-    model_gae = LinkPredNet()
+    # model_gae = LinkPredNet()
     optimizer_skel = torch.optim.Adam(model_skel.parameters(), lr=conf.LR_SPN)
-    optimizer_gae = torch.optim.Adam(model_gae.parameters(), lr=conf.LR_GAE)
+    # optimizer_gae = torch.optim.Adam(model_gae.parameters(), lr=conf.LR_GAE)
 
     TIMESTAMP = "{0:%Y-%m-%dT%H-%M-%S/}".format(datetime.now())
     tb_writer = SummaryWriter(save_log_path + TIMESTAMP)
@@ -107,11 +107,11 @@ if __name__ == "__main__":
         print("GPU Number:", torch.cuda.device_count(), "GPUs!")
         model_skel.cuda()
         model_skel.train(mode=True)
-        model_gae.cuda()
-        model_gae.train(mode=True)
+        # model_gae.cuda()
+        # model_gae.train(mode=True)
     else:
         print("No CUDA detected.")
-        sys.exit(0)
+        # sys.exit(0)
 
     #load data and train
     pc_list = rw.load_data_id(pc_list_file)
@@ -119,8 +119,8 @@ if __name__ == "__main__":
     train_loader = DataLoader(dataset=train_data, batch_size=conf.BATCH_SIZE, shuffle=True, drop_last=True)
     
     iter = -1
-    total_epoch = conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH + conf.GAE_TRAIN_EPOCH
-    
+    # total_epoch = conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH + conf.GAE_TRAIN_EPOCH
+    total_epoch = 1
     for epoch in range(total_epoch):
         for k, batch_data in enumerate(train_loader):
             iter += 1
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             
             batch_id, batch_pc = batch_data
             batch_id = batch_id
-            batch_pc = batch_pc.cuda().float()
+            batch_pc = batch_pc.cpu().float()
             
             ######################################
             # pre-train skeletal point network
@@ -151,7 +151,8 @@ if __name__ == "__main__":
             ######################################
             # train skeletal point network with geometric losses
             ######################################
-            elif epoch < conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH:
+            # elif epoch < conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH:
+            else:
                 print('######### skeletal point training #########')
                 skel_xyz, skel_r, shape_features = model_skel(batch_pc, compute_graph=False)
                 loss_skel = model_skel.compute_loss(batch_pc, skel_xyz, skel_r, None, 0.3, 0.4)
@@ -169,33 +170,33 @@ if __name__ == "__main__":
             ######################################
             # train GAE
             ######################################
-            else:
-                print('######### GAE training #########')
+            # else:
+            #     print('######### GAE training #########')
 
-                # frezee the skeletal point network
-                if epoch == conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH:
-                    model_skel.train(mode=False)
+            #     # frezee the skeletal point network
+            #     if epoch == conf.PRE_TRAIN_EPOCH + conf.SKELPOINT_TRAIN_EPOCH:
+            #         model_skel.train(mode=False)
 
-                # get skeletal points and the node features
-                skel_xyz, skel_r, sample_xyz, weights, shape_features, A_init, valid_mask, known_mask = model_skel(
-                    batch_pc, compute_graph=True)
-                skel_node_features = torch.cat([shape_features, skel_xyz, skel_r], 2).detach()
-                A_init = A_init.detach()
+            #     # get skeletal points and the node features
+            #     skel_xyz, skel_r, sample_xyz, weights, shape_features, A_init, valid_mask, known_mask = model_skel(
+            #         batch_pc, compute_graph=True)
+            #     skel_node_features = torch.cat([shape_features, skel_xyz, skel_r], 2).detach()
+            #     A_init = A_init.detach()
 
-                # train GAE
-                A_pred = model_gae(skel_node_features, A_init)
-                loss_MBCE = model_gae.compute_loss(A_pred, A_init, known_mask.detach())
-                optimizer_gae.zero_grad()
-                loss_MBCE.backward()
-                optimizer_gae.step()
+            #     # train GAE
+            #     A_pred = model_gae(skel_node_features, A_init)
+            #     loss_MBCE = model_gae.compute_loss(A_pred, A_init, known_mask.detach())
+            #     optimizer_gae.zero_grad()
+            #     loss_MBCE.backward()
+            #     optimizer_gae.step()
 
-                A_final = model_gae.recover_A(A_pred, valid_mask)
+            #     A_final = model_gae.recover_A(A_pred, valid_mask)
 
-                if iter % save_result_iter == 0:
-                    output_results(save_result_path, batch_id, epoch, batch_pc, skel_xyz, skel_r, A_init, A_final)
-                if iter % save_net_iter == 0:
-                    torch.save(model_gae.state_dict(), save_net_path + 'weights-gae.pth')
-                tb_writer.add_scalar('GAE/loss_MBCE', loss_MBCE.item(), iter)
+            #     if iter % save_result_iter == 0:
+            #         output_results(save_result_path, batch_id, epoch, batch_pc, skel_xyz, skel_r, A_init, A_final)
+            #     if iter % save_net_iter == 0:
+            #         torch.save(model_gae.state_dict(), save_net_path + 'weights-gae.pth')
+            #     tb_writer.add_scalar('GAE/loss_MBCE', loss_MBCE.item(), iter)
             
             
             '''
