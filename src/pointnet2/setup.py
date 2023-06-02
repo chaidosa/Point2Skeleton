@@ -28,10 +28,10 @@ setup(
         CUDAExtension(
             name="_ext",
             sources=_ext_sources,
-            extra_compile_args={
-                "cxx": ["-O2", "-I{}".format("{}/include".format(_ext_src_root))],
-                "nvcc": ["-O2", "-I{}".format("{}/include".format(_ext_src_root))],
-            },
+            # extra_compile_args={
+            #     "cxx": ["-O2", "-I{}".format("{}/include".format(_ext_src_root))],
+            #     "nvcc": ["-O2", "-I{}".format("{}/include".format(_ext_src_root))],
+            # },
         )
     ],
     cmdclass={"build_ext": BuildExtension},
